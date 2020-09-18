@@ -52,7 +52,9 @@ class NN(nn.Module):
         self.bn4 = nn.BatchNorm1d(1000)
         self.bn5 = nn.BatchNorm1d(1000)
 
-        self.conv = nn.Conv1d(in_channels=16, out_channels=4, kernel_size=10, stride=1, padding_mode='zeros')
+        self.dropout = nn.Dropout(0.2)
+
+        #self.conv = nn.Conv1d(in_channels=16, out_channels=4, kernel_size=10, stride=1, padding_mode='zeros')
 
     # Prediction
     def forward(self, x):
@@ -64,8 +66,6 @@ class NN(nn.Module):
         x = self.bn2(x)
         x = torch.relu(x)
 
-        x = self.conv(x)
-
         x = self.linear3(x)
         x = self.bn3(x)
         x = torch.relu(x)
@@ -73,6 +73,7 @@ class NN(nn.Module):
         x = self.linear4(x)
         x = self.bn4(x)
         x = torch.relu(x)
+        x = self.dropout(x)
 
         x = self.linear5(x)
         x = self.bn5(x)
@@ -84,13 +85,13 @@ class NN(nn.Module):
 
 # %%
 sqdataset = SquareRootDataset(length=200)
-train_loader = torch.utils.data.DataLoader(dataset=sqdataset, batch_size=16)
-validation_loader = torch.utils.data.DataLoader(dataset=sqdataset, batch_size=16)
+train_loader = torch.utils.data.DataLoader(dataset=sqdataset, batch_size=8)
+validation_loader = torch.utils.data.DataLoader(dataset=sqdataset, batch_size=8)
 # %%
 
 model = NN()
 model = model.float()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.9)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 # optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.001)
 criterion = nn.MSELoss()
 
@@ -105,11 +106,8 @@ def train_model(model, train_loader, validation_loader, optimizer, n_epochs=None
         for x, y in train_loader:
             model.train()
             optimizer.zero_grad()
-            a = 1
             z = model(x.float())
-            a = 1
             loss = criterion(z, y.float())
-            a = 1
             writer.add_scalar("Loss/train", loss, epoch)
             loss.backward()
             optimizer.step()
@@ -119,12 +117,11 @@ def train_model(model, train_loader, validation_loader, optimizer, n_epochs=None
         for x_test, y_test in validation_loader:
             model.eval()
             z = model(x_test.float())
-            a = 1
             # print(model(torch.Tensor(2).float()))
             _, yhat = torch.max(z.data, 1)
-            correct += (yhat == y_test).sum().item()
+            correct = torch.mean(y_test - yhat)
             accuracy = correct / N_test
-            writer.add_scalar("Accuracy/train", accuracy, epoch)
+            writer.add_scalar("Accuracy/train", correct, epoch)
             accuracy_list.append(accuracy)
     return accuracy_list, loss_list
 
@@ -133,7 +130,7 @@ def train_model(model, train_loader, validation_loader, optimizer, n_epochs=None
 train_model(model, train_loader, validation_loader, optimizer, n_epochs=50)  # %%
 
 model.eval()
-tt = torch.Tensor([[2.0], [20.0], [30.0], [60.0], [70.0], [51.0], [90.0], [30000.0], [2.0], [20.0], [30.0], [60.0], [70.0], [51.0], [90.0], [30000.0]])
+tt = torch.Tensor([[2.0], [20.0], [30.0], [60.0], [70.0], [51.0], [90.0], [30000.0]])
 print("sr of 2 and 3")
 print(np.sqrt(tt))
 print(model(torch.Tensor(tt).float()))
