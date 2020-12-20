@@ -33,27 +33,34 @@ class CoinsDataset(Dataset):
 
 df = pd.read_hdf("binance_data_sep_16.hdf")
 df = df.dropna()
-coindataset = CoinsDataset(df=df)
-BATCH_SIZE = 6
-train_loader = torch.utils.data.DataLoader(dataset=coindataset, batch_size=BATCH_SIZE, drop_last=True)
-validation_loader = torch.utils.data.DataLoader(dataset=coindataset, batch_size=BATCH_SIZE, drop_last=True)
+coindataset_train = CoinsDataset(df=df.iloc[:-15])
+coindataset_validation = CoinsDataset(df=df.iloc[-15:])
+BATCH_SIZE = 1
+N_EPOCHS = 100
+DROPOUT_P = 0.5
+LR = 0.1
+train_loader = torch.utils.data.DataLoader(dataset=coindataset_train, batch_size=BATCH_SIZE, drop_last=True)
+validation_loader = torch.utils.data.DataLoader(dataset=coindataset_validation, batch_size=BATCH_SIZE, drop_last=True)
 
 
 model = torch.nn.Sequential(
     torch.nn.Linear(253, 253),
-    nn.BatchNorm1d(253),
+    nn.Dropout(p=DROPOUT_P),
+    # nn.BatchNorm1d(253),
     torch.nn.ReLU(),
     torch.nn.Linear(253, 253),
-    nn.BatchNorm1d(253),
+    nn.Dropout(p=DROPOUT_P),
+    # nn.BatchNorm1d(253),
     torch.nn.ReLU(),
     torch.nn.Linear(253, 1000),
-    nn.BatchNorm1d(1000),
+    # nn.BatchNorm1d(1000),
+    nn.Dropout(p=DROPOUT_P),
     torch.nn.ReLU(),
     torch.nn.Linear(1000, 1000),
-    nn.Dropout(p=0.1),
+    nn.Dropout(p=DROPOUT_P),
     torch.nn.ReLU(),
     torch.nn.Linear(1000, 253),
-    nn.Dropout(p=0.1),
+    nn.Dropout(p=DROPOUT_P),
     torch.nn.ReLU(),
     torch.nn.Linear(253, 253),
 )
@@ -61,7 +68,7 @@ model = torch.nn.Sequential(
 
 model = model.float()
 model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 # optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.001)
 criterion = nn.MSELoss()
 
@@ -69,7 +76,7 @@ criterion = nn.MSELoss()
 # %%
 def train_model(model, train_loader, validation_loader, optimizer, n_epochs=None):
     # global variable
-    N_test = len(coindataset)
+    N_test = len(coindataset_validation)
     accuracy_list = []
     loss_list = []
     for epoch in range(n_epochs):
@@ -101,14 +108,9 @@ def train_model(model, train_loader, validation_loader, optimizer, n_epochs=None
     return accuracy_list, loss_list
 
 
-# %%
-train_model(model, train_loader, validation_loader, optimizer, n_epochs=200)  # %%
+train_model(model, train_loader, validation_loader, optimizer, n_epochs=N_EPOCHS)  # %%
 
 model.eval()
-tt = torch.Tensor([[2.0], [20.0], [30.0], [60.0], [70.0], [51.0], [90.0], [30000.0]])
-# print("sr of 2 and 3")
-# print(np.sqrt(tt))
-# print(model(torch.Tensor(tt).float()))
 
 last_row = torch.from_numpy(df.iloc[-BATCH_SIZE:].values).float()
 
@@ -117,7 +119,7 @@ print(last_row[0][0])
 print("prediction")
 print(model(last_row.to(device))[0][0])
 
-print("last row")
-print(last_row[5][0])
-print("prediction")
-print(model(last_row.to(device))[5][0])
+# print("last row")
+# print(last_row[5][0])
+# print("prediction")
+# print(model(last_row.to(device))[5][0])
